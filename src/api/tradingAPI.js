@@ -1,6 +1,312 @@
 const express = require('express');
 const router = express.Router();
 
+/**
+ * @swagger
+ * tags:
+ *   name: Trading Analytics
+ *   description: API for trading analytics and signals
+ */
+
+/**
+ * @swagger
+ * /api/tokens:
+ *   get:
+ *     summary: Get all active tokens
+ *     tags: [Trading Analytics]
+ *     responses:
+ *       200:
+ *         description: List of active tokens
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       address:
+ *                         type: string
+ *                         example: 0x6982508145454Ce325dDbE47a25d4ec3d2311933
+ *                       symbol:
+ *                         type: string
+ *                         example: PEPE
+ *                       name:
+ *                         type: string
+ *                         example: Pepe
+ *                       price:
+ *                         type: number
+ *                         example: 0.00000123
+ *                       supply:
+ *                         type: number
+ *                         example: 1000000000000
+ *                       decimals:
+ *                         type: integer
+ *                         example: 18
+ *                 timestamp:
+ *                   type: string
+ *                   example: 2024-06-23T12:00:00.000Z
+ */
+
+/**
+ * @swagger
+ * /api/analysis/{tokenAddress}:
+ *   get:
+ *     summary: Get latest analysis for a specific token
+ *     tags: [Trading Analytics]
+ *     parameters:
+ *       - in: path
+ *         name: tokenAddress
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Token contract address
+ *     responses:
+ *       200:
+ *         description: Latest analysis for the token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                 timestamp:
+ *                   type: string
+ *       404:
+ *         description: Analysis not found for this token
+ *
+ * /api/analysis/{tokenAddress}/history:
+ *   get:
+ *     summary: Get analysis history for a token
+ *     tags: [Trading Analytics]
+ *     parameters:
+ *       - in: path
+ *         name: tokenAddress
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Token contract address
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Number of history records to return
+ *     responses:
+ *       200:
+ *         description: Analysis history for the token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                 count:
+ *                   type: integer
+ *                 timestamp:
+ *                   type: string
+ *
+ * /api/signals/{tokenAddress}:
+ *   get:
+ *     summary: Get trading signals for a token
+ *     tags: [Trading Analytics]
+ *     parameters:
+ *       - in: path
+ *         name: tokenAddress
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Token contract address
+ *     responses:
+ *       200:
+ *         description: Trading signals for the token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                 timestamp:
+ *                   type: string
+ *       404:
+ *         description: No signals available for this token
+ *
+ * /api/signals:
+ *   get:
+ *     summary: Get trading signals for all tokens
+ *     tags: [Trading Analytics]
+ *     responses:
+ *       200:
+ *         description: Trading signals for all tokens
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                 count:
+ *                   type: integer
+ *                 timestamp:
+ *                   type: string
+ *
+ * /api/market/overview:
+ *   get:
+ *     summary: Get market overview
+ *     tags: [Trading Analytics]
+ *     responses:
+ *       200:
+ *         description: Market overview
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                 timestamp:
+ *                   type: string
+ *
+ * /api/market/top-performers:
+ *   get:
+ *     summary: Get top performing tokens by metric
+ *     tags: [Trading Analytics]
+ *     parameters:
+ *       - in: query
+ *         name: metric
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Metric to sort by (e.g. volume24h, marketCap)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Number of top performers to return
+ *     responses:
+ *       200:
+ *         description: Top performing tokens
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                 metric:
+ *                   type: string
+ *                 timestamp:
+ *                   type: string
+ *
+ * /api/risk/{tokenAddress}:
+ *   get:
+ *     summary: Get risk analysis for a token
+ *     tags: [Trading Analytics]
+ *     parameters:
+ *       - in: path
+ *         name: tokenAddress
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Token contract address
+ *     responses:
+ *       200:
+ *         description: Risk analysis for the token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                 timestamp:
+ *                   type: string
+ *       404:
+ *         description: Risk analysis not available for this token
+ *
+ * /api/status:
+ *   get:
+ *     summary: Get API status and metrics
+ *     tags: [Trading Analytics]
+ *     responses:
+ *       200:
+ *         description: API status and metrics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *
+ * /api/analyze:
+ *   post:
+ *     summary: Run analytics for all tokens on demand
+ *     tags: [Trading Analytics]
+ *     responses:
+ *       200:
+ *         description: Analytics performed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *
+ * /api/analyze/{tokenAddress}:
+ *   post:
+ *     summary: Run analytics for a specific token on demand
+ *     tags: [Trading Analytics]
+ *     parameters:
+ *       - in: path
+ *         name: tokenAddress
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Token contract address
+ *     responses:
+ *       200:
+ *         description: Analytics performed successfully for the token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                 message:
+ *                   type: string
+ */
+
 module.exports = function(analyticsEngine) {
   
   // Get all active tokens
@@ -364,6 +670,27 @@ module.exports = function(analyticsEngine) {
         success: false,
         error: error.message
       });
+    }
+  });
+
+  // Run analytics for all tokens on demand
+  router.post('/analyze', async (req, res) => {
+    try {
+      await analyticsEngine.performAnalysis();
+      res.json({ success: true, message: 'Analytics performed for all tokens.' });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Run analytics for a specific token on demand
+  router.post('/analyze/:tokenAddress', async (req, res) => {
+    try {
+      const { tokenAddress } = req.params;
+      const analysis = await analyticsEngine.analyzeToken(tokenAddress);
+      res.json({ success: true, data: analysis, message: 'Analytics performed for token.' });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
     }
   });
 

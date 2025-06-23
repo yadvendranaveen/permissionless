@@ -6,6 +6,9 @@ const compression = require('compression');
 const morgan = require('morgan');
 require('dotenv').config();
 
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
+
 const AnalyticsEngine = require('./analytics/analyticsEngine');
 const SupraAutomation = require('./automation/supraAutomation');
 const TradingAPI = require('./api/tradingAPI');
@@ -13,6 +16,25 @@ const WebSocketManager = require('./websocket/websocketManager');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Swagger setup
+const swaggerDefinition = {
+  openapi: '3.0.0',
+  info: {
+    title: 'AutoTrading Analytics Bot API',
+    version: '1.0.0',
+    description: 'API documentation for the AI-powered trading analytics microservice',
+  },
+  servers: [
+    { url: 'http://localhost:3001' }
+  ],
+};
+const swaggerOptions = {
+  swaggerDefinition,
+  apis: ['./src/api/tradingAPI.js'],
+};
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Middleware
 app.use(helmet());

@@ -93,13 +93,13 @@ class AnalyticsEngine {
       
       console.log('📊 Analytics Engine initialized with real blockchain data');
       this.running = true;
-      this.startAnalysis();
+      // this.startAnalysis(); // Disabled background analysis
     } catch (error) {
       console.error('❌ Failed to initialize Analytics Engine:', error);
       // Continue without Redis in test mode
       if (process.env.NODE_ENV === 'test') {
         this.running = true;
-        this.startAnalysis();
+        // this.startAnalysis(); // Disabled background analysis
       }
     }
   }
@@ -642,6 +642,29 @@ class AnalyticsEngine {
       await this.redis.quit();
     }
     console.log('📊 Analytics Engine shutdown complete');
+  }
+
+  // Add this method for on-demand analysis of a single token
+  async analyzeToken(tokenAddress) {
+    try {
+      const tokens = await this.getActiveTokens();
+      const token = tokens.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase());
+      if (!token) throw new Error('Token not found');
+      const metrics = await this.calculateMetrics(token);
+      const signals = this.generateTradingSignals(metrics);
+      const analysis = {
+        tokenAddress: token.address,
+        timestamp: new Date().toISOString(),
+        metrics,
+        signals,
+        analysisId: uuidv4()
+      };
+      await this.storeAnalysis(token.address, analysis);
+      return analysis;
+    } catch (error) {
+      console.error('❌ Token analysis failed:', error);
+      throw error;
+    }
   }
 }
 
