@@ -1,0 +1,47 @@
+{
+  "name": "autotrading-analytics-bot",
+  "version": "1.0.0",
+  "description": "AI-powered trading analytics microservice with Supra automation for memecoin analysis",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest",
+    "docker:build": "docker build -t autotrading-analytics .",
+    "docker:run": "docker run -p 3000:3000 autotrading-analytics"
+  },
+  "keywords": [
+    "supra",
+    "trading",
+    "analytics",
+    "automation",
+    "memecoin"
+  ],
+  "author": "Permissionless Hackathon",
+  "license": "MIT",
+  "dependencies": {
+    "@uniswap/sdk-core": "^4.0.3",
+    "@uniswap/v3-sdk": "^3.10.0",
+    "axios": "^1.6.0",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "ethers": "^5.8.0",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "node-cache": "^5.1.2",
+    "node-cron": "^3.0.3",
+    "redis": "^4.6.10",
+    "simple-statistics": "^7.8.3",
+    "technicalindicators": "^3.1.0",
+    "uuid": "^9.0.1",
+    "web3": "^1.10.4",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.1",
+    "supertest": "^6.3.3"
+  }
+}

@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  autotrading-analytics:
+    build: .
+    container_name: autotrading-analytics
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - PORT=3000
+      - ETHEREUM_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/eWDF7SnabyxY8ehsReuI6IGE4Il6osXi
+      - CACHE_TTL=300
+      - ANALYSIS_INTERVAL=30000
+      - AUTOMATION_INTERVAL=15000
+      - WEBSOCKET_UPDATE_INTERVAL=10000
+      - API_RATE_LIMIT=100
+      - CORS_ORIGIN=http://localhost:3000
+      - LOG_LEVEL=info
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - autotrading-network
+    volumes:
+      - ./logs:/app/logs
+
+  redis:
+    image: redis:7-alpine
+    container_name: permissionless-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - autotrading-network
+    command: redis-server --appendonly yes
+
+volumes:
+  redis-data:
+
+networks:
+  autotrading-network:
+    driver: bridge 
