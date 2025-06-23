@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live AI Signals Dashboard v2</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            margin-right: 400px;
+        }
+
+        .chat-panel {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: 400px;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border-left: 2px solid #00d4ff;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00d4ff, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+
+        .live-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #00ff88;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .metric-card h3 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 15px;
+        }
+
+        .current-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .change-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .positive { background: rgba(0, 255, 136, 0.2); color: #00ff88; }
+        .negative { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+        .neutral { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+
+        /* Chat Panel Styles */
+        .chat-header {
+            background: linear-gradient(45deg, #00d4ff, #ff6b6b);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .chat-header h2 {
+            color: white;
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        .chat-header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .message {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid #00d4ff;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .message.ai-signal {
+            border-left-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .message.job-executed {
+            border-left-color: #ffc107;
+            background: rgba(255, 193, 7, 0.1);
+        }
+
+        .message.error {
+            border-left-color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+        }
+
+        .message.info {
+            border-left-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .message-type {
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .message-time {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
+        .message-content {
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .signal-token {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        .signal-confidence {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        .chat-controls {
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff6b6b;
+        }
+
+        .status-dot.connected {
+            background: #00ff88;
+        }
+
+        .clear-btn {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .clear-btn:hover {
+            background: rgba(255, 107, 107, 0.3);
+        }
+
+        .market-overview {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .overview-metric {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .overview-metric .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .overview-metric .label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2rem;
+            opacity: 0.7;
+        }
+
+        .error {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                margin-right: 0;
+            }
+            
+            .chat-panel {
+                position: relative;
+                width: 100%;
+                height: 500px;
+                margin-top: 20px;
+            }
+            
+            .dashboard-container {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 10px;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .market-overview {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="main-content">
+            <div class="header">
+                <h1><span class="live-indicator"></span>Live AI Signals Dashboard v2</h1>
+                <p>Real-time blockchain analytics with live AI signal chat</p>
+                <div style="margin-top: 15px;">
+                    <a href="/live/v2" style="background: linear-gradient(45deg, #00d4ff, #ff6b6b); color: white; padding: 10px 20px; border-radius: 25px; text-decoration: none; font-weight: bold; display: inline-block; margin: 0 10px;">
+                        🚀 Live v2
+                    </a>
+                    <a href="/live" style="background: rgba(255, 255, 255, 0.2); color: white; padding: 10px 20px; border-radius: 25px; text-decoration: none; font-weight: bold; display: inline-block; margin: 0 10px;">
+                        📊 Live v1
+                    </a>
+                    <a href="/" style="background: rgba(255, 255, 255, 0.2); color: white; padding: 10px 20px; border-radius: 25px; text-decoration: none; font-weight: bold; display: inline-block; margin: 0 10px;">
+                        📊 Static Demo
+                    </a>
+                </div>
+            </div>
+
+            <!-- Market Overview -->
+            <div class="metric-card market-overview">
+                <h3>📊 Market Overview</h3>
+                <div class="overview-metric">
+                    <div class="value" id="totalMarketCap">$0</div>
+                    <div class="label">Total Market Cap</div>
+                </div>
+                <div class="overview-metric">
+                    <div class="value" id="totalVolume">$0</div>
+                    <div class="label">24h Volume</div>
+                </div>
+                <div class="overview-metric">
+                    <div class="value" id="activeTokens">0</div>
+                    <div class="label">Active Tokens</div>
+                </div>
+                <div class="overview-metric">
+                    <div class="value" id="marketTrend">-</div>
+                    <div class="label">Market Trend</div>
+                </div>
+            </div>
+
+            <!-- Price Charts -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>🐸 Pepe (PEPE)</h3>
+                    <div class="current-value" id="pepePrice">$0.00000000</div>
+                    <div class="change-indicator neutral" id="pepeChange">0.00%</div>
+                    <div class="chart-container">
+                        <canvas id="pepeChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <h3>🐕 Shiba INU (SHIB)</h3>
+                    <div class="current-value" id="shibPrice">$0.00000000</div>
+                    <div class="change-indicator neutral" id="shibChange">0.00%</div>
+                    <div class="chart-container">
+                        <canvas id="shibChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <h3>💎 Dai (DAI)</h3>
+                    <div class="current-value" id="daiPrice">$0.00000000</div>
+                    <div class="change-indicator neutral" id="daiChange">0.00%</div>
+                    <div class="chart-container">
+                        <canvas id="daiChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div id="loading" class="loading">Loading live data...</div>
+            <div id="error" class="error" style="display: none;"></div>
+        </div>
+
+        <!-- Chat Panel -->
+        <div class="chat-panel">
+            <div class="chat-header">
+                <h2>🤖 AI Signals Chat</h2>
+                <p>Live blockchain analytics and trading signals</p>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <div class="message info">
+                    <div class="message-header">
+                        <span class="message-type">System</span>
+                        <span class="message-time" id="currentTime"></span>
+                    </div>
+                    <div class="message-content">
+                        Connecting to WebSocket for live AI signals...
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-controls">
+                <div class="connection-status">
+                    <div class="status-indicator">
+                        <div class="status-dot" id="statusDot"></div>
+                        <span id="connectionStatus">Disconnected</span>
+                    </div>
+                    <button class="clear-btn" onclick="clearMessages()">Clear Chat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let charts = {};
+        let priceData = {
+            PEPE: [],
+            SHIB: [],
+            DAI: []
+        };
+        let ws = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+
+        // Initialize dashboard
+        function initializeDashboard() {
+            createCharts();
+            startLiveUpdates();
+            connectWebSocket();
+            updateCurrentTime();
+            setInterval(updateCurrentTime, 1000);
+        }
+
+        // Update current time
+        function updateCurrentTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString();
+        }
+
+        // Create all charts
+        function createCharts() {
+            createPriceChart('pepeChart', 'PEPE Price', '#00ff88');
+            createPriceChart('shibChart', 'SHIB Price', '#ff6b6b');
+            createPriceChart('daiChart', 'DAI Price', '#00d4ff');
+        }
+
+        // Create price chart
+        function createPriceChart(canvasId, label, color) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            charts[canvasId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: label,
+                        data: [],
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: false
+                        },
+                        y: {
+                            display: false
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 0
+                        }
+                    }
+                }
+            });
+        }
+
+        // Connect to WebSocket
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function() {
+                    console.log('WebSocket connected');
+                    updateConnectionStatus(true);
+                    addMessage('System', 'WebSocket connected successfully', 'info');
+                    reconnectAttempts = 0;
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleWebSocketMessage(data);
+                    } catch (error) {
+                        console.error('Error parsing WebSocket message:', error);
+                    }
+                };
+                
+                ws.onclose = function() {
+                    console.log('WebSocket disconnected');
+                    updateConnectionStatus(false);
+                    addMessage('System', 'WebSocket disconnected', 'error');
+                    
+                    // Attempt to reconnect
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        setTimeout(() => {
+                            addMessage('System', `Attempting to reconnect... (${reconnectAttempts}/${maxReconnectAttempts})`, 'info');
+                            connectWebSocket();
+                        }, 3000);
+                    } else {
+                        addMessage('System', 'Max reconnection attempts reached. Please refresh the page.', 'error');
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    addMessage('System', 'WebSocket connection error', 'error');
+                };
+                
+            } catch (error) {
+                console.error('Error creating WebSocket:', error);
+                addMessage('System', 'Failed to create WebSocket connection', 'error');
+            }
+        }
+
+        // Handle WebSocket messages
+        function handleWebSocketMessage(data) {
+            if (data.type === 'ai_signal') {
+                addAISignalMessage(data);
+            } else if (data.type === 'job_executed') {
+                addJobMessage(data);
+            } else if (data.type === 'block_analysis') {
+                addBlockMessage(data);
+            } else if (data.type === 'error') {
+                addMessage('Error', data.message, 'error');
+            } else if (data.type === 'analytics_update') {
+                updateDashboard(data.data);
+            }
+        }
+
+        // Add AI signal message
+        function addAISignalMessage(data) {
+            const message = `🤖 AI Signal for <span class="signal-token">${data.token}</span>: <strong>${data.signal}</strong> (Confidence: <span class="signal-confidence">${data.confidence}</span>)`;
+            addMessage('AI Signal', message, 'ai-signal');
+        }
+
+        // Add job executed message
+        function addJobMessage(data) {
+            const message = `✅ Job ${data.job} executed successfully (Block ${data.block})`;
+            addMessage('Job', message, 'job-executed');
+        }
+
+        // Add block analysis message
+        function addBlockMessage(data) {
+            const message = `🔗 Block ${data.block}: Executing automation jobs...`;
+            addMessage('Block', message, 'info');
+        }
+
+        // Add message to chat
+        function addMessage(type, content, messageType = 'info') {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${messageType}`;
+            
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <span class="message-type">${type}</span>
+                    <span class="message-time">${timeString}</span>
+                </div>
+                <div class="message-content">${content}</div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Keep only last 100 messages
+            const messages = chatMessages.querySelectorAll('.message');
+            if (messages.length > 100) {
+                messages[0].remove();
+            }
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('connectionStatus');
+            
+            if (connected) {
+                statusDot.classList.add('connected');
+                statusText.textContent = 'Connected';
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'Disconnected';
+            }
+        }
+
+        // Clear messages
+        function clearMessages() {
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML = `
+                <div class="message info">
+                    <div class="message-header">
+                        <span class="message-type">System</span>
+                        <span class="message-time">${new Date().toLocaleTimeString()}</span>
+                    </div>
+                    <div class="message-content">
+                        Chat cleared. Waiting for new signals...
+                    </div>
+                </div>
+            `;
+        }
+
+        // Start live updates
+        function startLiveUpdates() {
+            loadLiveData();
+            setInterval(loadLiveData, 30000);
+        }
+
+        // Load live data
+        async function loadLiveData() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('error').style.display = 'none';
+
+                const response = await fetch('/api/analytics/live');
+                if (response.ok) {
+                    const data = await response.json();
+                    updateDashboard(data);
+                } else {
+                    await loadDemoData();
+                }
+            } catch (error) {
+                console.log('Using demo data due to API error:', error.message);
+                await loadDemoData();
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // Load demo data
+        async function loadDemoData() {
+            try {
+                const response = await fetch('/api/demo/data');
+                if (response.ok) {
+                    const data = await response.json();
+                    updateDashboard(data);
+                }
+            } catch (error) {
+                console.log('Demo data not available');
+            }
+        }
+
+        // Update dashboard
+        function updateDashboard(data) {
+            updateMarketOverview(data.marketOverview);
+            updateTokenData('PEPE', data.tokens.PEPE);
+            updateTokenData('SHIB', data.tokens.SHIB);
+            updateTokenData('DAI', data.tokens.DAI);
+            updateCharts(data);
+        }
+
+        // Update market overview
+        function updateMarketOverview(overview) {
+            document.getElementById('totalMarketCap').textContent = `$${(overview.totalMarketCap / 1e9).toFixed(1)}B`;
+            document.getElementById('totalVolume').textContent = `$${(overview.totalVolume24h / 1e9).toFixed(1)}B`;
+            document.getElementById('activeTokens').textContent = overview.activeTokens;
+            document.getElementById('marketTrend').textContent = overview.marketTrend.charAt(0).toUpperCase() + overview.marketTrend.slice(1);
+        }
+
+        // Update token data
+        function updateTokenData(symbol, tokenData) {
+            const priceElement = document.getElementById(`${symbol.toLowerCase()}Price`);
+            const changeElement = document.getElementById(`${symbol.toLowerCase()}Change`);
+
+            if (priceElement && tokenData) {
+                priceElement.textContent = `$${tokenData.currentPrice.toFixed(8)}`;
+            }
+            
+            if (changeElement && tokenData) {
+                const change = tokenData.priceChange24h;
+                changeElement.textContent = `${change > 0 ? '+' : ''}${change.toFixed(2)}%`;
+                changeElement.className = `change-indicator ${change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral'}`;
+            }
+
+            // Add to price history
+            if (tokenData) {
+                const timestamp = new Date().toLocaleTimeString();
+                priceData[symbol].push({
+                    time: timestamp,
+                    price: tokenData.currentPrice
+                });
+
+                // Keep only last 20 data points
+                if (priceData[symbol].length > 20) {
+                    priceData[symbol].shift();
+                }
+            }
+        }
+
+        // Update charts
+        function updateCharts(data) {
+            updatePriceChart('pepeChart', priceData.PEPE);
+            updatePriceChart('shibChart', priceData.SHIB);
+            updatePriceChart('daiChart', priceData.DAI);
+        }
+
+        // Update price chart
+        function updatePriceChart(chartId, data) {
+            const chart = charts[chartId];
+            if (chart && data.length > 0) {
+                chart.data.labels = data.map(item => item.time);
+                chart.data.datasets[0].data = data.map(item => item.price);
+                chart.update('none');
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initializeDashboard);
+
+        // Handle page unload
+        window.addEventListener('beforeunload', function() {
+            if (ws) {
+                ws.close();
+            }
+        });
+    </script>
+</body>
+</html> 

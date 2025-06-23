@@ -647,24 +647,232 @@ class AnalyticsEngine {
   // Add this method for on-demand analysis of a single token
   async analyzeToken(tokenAddress) {
     try {
-      const tokens = await this.getActiveTokens();
-      const token = tokens.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase());
-      if (!token) throw new Error('Token not found');
+      const token = this.memecoinAddresses.find(t => t.address === tokenAddress);
+      if (!token) {
+        throw new Error(`Token not found: ${tokenAddress}`);
+      }
+
       const metrics = await this.calculateMetrics(token);
       const signals = this.generateTradingSignals(metrics);
-      const analysis = {
-        tokenAddress: token.address,
-        timestamp: new Date().toISOString(),
+      
+      return {
+        token,
         metrics,
         signals,
-        analysisId: uuidv4()
+        timestamp: new Date().toISOString()
       };
-      await this.storeAnalysis(token.address, analysis);
-      return analysis;
     } catch (error) {
-      console.error('❌ Token analysis failed:', error);
-      throw error;
+      console.error(`Error analyzing token ${tokenAddress}:`, error);
+      return null;
     }
+  }
+
+  // Get current analytics data for live dashboard
+  async getCurrentAnalytics() {
+    try {
+      const currentData = {
+        totalMarketCap: 0,
+        totalVolume24h: 0,
+        activeTokens: this.memecoinAddresses.length,
+        marketTrend: "neutral",
+        tokens: {},
+        tradingSignals: [],
+        riskAnalysis: {},
+        recentTrades: [],
+        performance: {
+          totalReturn: 0,
+          sharpeRatio: 0,
+          maxDrawdown: 0,
+          volatility: 0,
+          beta: 0,
+          alpha: 0
+        }
+      };
+
+      // Get latest data for each token
+      for (const token of this.memecoinAddresses) {
+        try {
+          const analysis = await this.analyzeToken(token.address);
+          if (analysis) {
+            const tokenData = {
+              symbol: token.symbol,
+              name: token.name,
+              currentPrice: analysis.metrics.price || 0,
+              priceChange24h: analysis.metrics.priceChange24h || 0,
+              priceChange7d: analysis.metrics.priceChange7d || 0,
+              marketCap: analysis.metrics.marketCap || 0,
+              volume24h: analysis.metrics.volume24h || 0,
+              riskMetrics: {
+                volatility: analysis.metrics.volatility || 0,
+                sharpeRatio: analysis.metrics.sharpeRatio || 0,
+                maxDrawdown: analysis.metrics.maxDrawdown || 0,
+                beta: analysis.metrics.beta || 1
+              }
+            };
+
+            currentData.tokens[token.symbol] = tokenData;
+            currentData.totalMarketCap += tokenData.marketCap || 0;
+            currentData.totalVolume24h += tokenData.volume24h || 0;
+            
+            // Add trading signal
+            if (analysis.signals) {
+              currentData.tradingSignals.push({
+                token: token.symbol,
+                signal: analysis.signals.recommendation,
+                confidence: analysis.signals.confidence || 0.5,
+                price: tokenData.currentPrice,
+                change24h: tokenData.priceChange24h,
+                reasoning: analysis.signals.reasoning || 'Analysis completed',
+                timestamp: new Date().toISOString()
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`Error getting analytics for ${token.symbol}:`, error);
+        }
+      }
+
+      // Determine market trend
+      const bullishTokens = currentData.tradingSignals.filter(s => s.signal === 'BUY').length;
+      const bearishTokens = currentData.tradingSignals.filter(s => s.signal === 'SELL').length;
+      
+      if (bullishTokens > bearishTokens) {
+        currentData.marketTrend = "bullish";
+      } else if (bearishTokens > bullishTokens) {
+        currentData.marketTrend = "bearish";
+      } else {
+        currentData.marketTrend = "neutral";
+      }
+
+      // Calculate performance metrics
+      const returns = currentData.tradingSignals.map(s => s.change24h);
+      if (returns.length > 0) {
+        currentData.performance.totalReturn = returns.reduce((a, b) => a + b, 0);
+        currentData.performance.volatility = this.calculateVolatility(returns);
+        currentData.performance.sharpeRatio = this.calculateSharpeRatio(returns);
+        currentData.performance.maxDrawdown = this.calculateMaxDrawdown(returns);
+      }
+
+      // Risk analysis
+      currentData.riskAnalysis = {
+        overallRisk: this.calculateOverallRisk(currentData.tokens),
+        volatilityAlert: this.getVolatilityAlert(currentData.tokens),
+        concentrationRisk: this.calculateConcentrationRisk(currentData.tokens),
+        liquidityRisk: this.calculateLiquidityRisk(currentData.tokens),
+        marketRisk: currentData.marketTrend,
+        recommendations: this.generateRecommendations(currentData.tokens)
+      };
+
+      return currentData;
+    } catch (error) {
+      console.error('Error getting current analytics:', error);
+      return null;
+    }
+  }
+
+  // Calculate volatility
+  calculateVolatility(returns) {
+    if (returns.length < 2) return 0;
+    const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+    const variance = returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (returns.length - 1);
+    return Math.sqrt(variance);
+  }
+
+  // Calculate Sharpe ratio
+  calculateSharpeRatio(returns) {
+    if (returns.length < 2) return 0;
+    const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+    const volatility = this.calculateVolatility(returns);
+    return volatility > 0 ? mean / volatility : 0;
+  }
+
+  // Calculate max drawdown
+  calculateMaxDrawdown(returns) {
+    let maxDrawdown = 0;
+    let peak = 0;
+    let runningTotal = 0;
+
+    for (const ret of returns) {
+      runningTotal += ret;
+      if (runningTotal > peak) {
+        peak = runningTotal;
+      }
+      const drawdown = peak - runningTotal;
+      if (drawdown > maxDrawdown) {
+        maxDrawdown = drawdown;
+      }
+    }
+
+    return -maxDrawdown;
+  }
+
+  // Calculate overall risk
+  calculateOverallRisk(tokens) {
+    const volatilities = Object.values(tokens).map(t => t.riskMetrics?.volatility || 0);
+    const avgVolatility = volatilities.reduce((a, b) => a + b, 0) / volatilities.length;
+    
+    if (avgVolatility > 1.0) return "high";
+    if (avgVolatility > 0.6) return "moderate";
+    return "low";
+  }
+
+  // Get volatility alert
+  getVolatilityAlert(tokens) {
+    const highVolTokens = Object.entries(tokens)
+      .filter(([symbol, data]) => (data.riskMetrics?.volatility || 0) > 1.0)
+      .map(([symbol]) => symbol);
+    
+    if (highVolTokens.length > 0) {
+      return `High volatility detected in ${highVolTokens.join(', ')}`;
+    }
+    return "Normal volatility levels";
+  }
+
+  // Calculate concentration risk
+  calculateConcentrationRisk(tokens) {
+    const marketCaps = Object.values(tokens).map(t => t.marketCap || 0);
+    const totalCap = marketCaps.reduce((a, b) => a + b, 0);
+    const maxCap = Math.max(...marketCaps);
+    
+    const concentration = totalCap > 0 ? maxCap / totalCap : 0;
+    
+    if (concentration > 0.7) return "High - concentrated holdings";
+    if (concentration > 0.4) return "Medium - moderate concentration";
+    return "Low - well distributed";
+  }
+
+  // Calculate liquidity risk
+  calculateLiquidityRisk(tokens) {
+    const volumes = Object.values(tokens).map(t => t.volume24h || 0);
+    const avgVolume = volumes.reduce((a, b) => a + b, 0) / volumes.length;
+    
+    if (avgVolume > 1e9) return "Low - high liquidity";
+    if (avgVolume > 1e6) return "Medium - adequate liquidity";
+    return "High - low liquidity";
+  }
+
+  // Generate recommendations
+  generateRecommendations(tokens) {
+    const recommendations = [];
+    
+    Object.entries(tokens).forEach(([symbol, data]) => {
+      const volatility = data.riskMetrics?.volatility || 0;
+      const change = data.priceChange24h || 0;
+      
+      if (volatility > 1.2) {
+        recommendations.push(`Consider reducing exposure to ${symbol} due to high volatility`);
+      } else if (change > 10) {
+        recommendations.push(`${symbol} shows strong momentum - monitor for continuation`);
+      } else if (change < -10) {
+        recommendations.push(`${symbol} experiencing significant decline - assess fundamentals`);
+      }
+    });
+    
+    if (recommendations.length === 0) {
+      recommendations.push("Market conditions are stable - maintain current positions");
+    }
+    
+    return recommendations;
   }
 }
 

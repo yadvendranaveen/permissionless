@@ -4,8 +4,10 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   name: Trading Analytics
- *   description: API for trading analytics and signals
+ *   - name: Trading Analytics
+ *     description: API for trading analytics and signals
+ *   - name: Demo
+ *     description: Demo data endpoints for presentation
  */
 
 /**
@@ -691,6 +693,147 @@ module.exports = function(analyticsEngine) {
       res.json({ success: true, data: analysis, message: 'Analytics performed for token.' });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Demo data endpoints
+  const DemoDataService = require('../services/demoDataService');
+  const demoDataService = new DemoDataService();
+
+  /**
+   * @swagger
+   * /api/demo/data:
+   *   get:
+   *     summary: Get demo data for presentation
+   *     tags: [Demo]
+   *     responses:
+   *       200:
+   *         description: Demo data for all tokens and analytics
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     tokens:
+   *                       type: array
+   *                     marketOverview:
+   *                       type: object
+   *                     tradingSignals:
+   *                       type: array
+   *                     riskAnalysis:
+   *                       type: array
+   *                 timestamp:
+   *                   type: string
+   */
+  router.get('/demo/data', async (req, res) => {
+    try {
+      const demoData = {
+        tokens: demoDataService.getTokens(),
+        marketOverview: demoDataService.getMarketOverview(),
+        tradingSignals: demoDataService.getTradingSignals(),
+        riskAnalysis: demoDataService.getRiskAnalysis()
+      };
+      
+      res.json({
+        success: true,
+        data: demoData,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/demo/analyze:
+   *   post:
+   *     summary: Run demo analysis for all tokens
+   *     tags: [Demo]
+   *     responses:
+   *       200:
+   *         description: Demo analysis completed
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 message:
+   *                   type: string
+   *                 timestamp:
+   *                   type: string
+   */
+  router.post('/demo/analyze', async (req, res) => {
+    try {
+      const result = await demoDataService.performAnalysis();
+      res.json({
+        success: true,
+        message: 'Demo analysis completed successfully',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/demo/analyze/{tokenAddress}:
+   *   post:
+   *     summary: Run demo analysis for a specific token
+   *     tags: [Demo]
+   *     parameters:
+   *       - in: path
+   *         name: tokenAddress
+   *         schema:
+   *           type: string
+   *         required: true
+   *         description: Token contract address
+   *     responses:
+   *       200:
+   *         description: Demo analysis for the token
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 data:
+   *                   type: object
+   *                 message:
+   *                   type: string
+   *                 timestamp:
+   *                   type: string
+   */
+  router.post('/demo/analyze/:tokenAddress', async (req, res) => {
+    try {
+      const { tokenAddress } = req.params;
+      const analysis = await demoDataService.analyzeToken(tokenAddress);
+      res.json({
+        success: true,
+        data: analysis,
+        message: 'Demo analysis completed for token',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
     }
   });
 

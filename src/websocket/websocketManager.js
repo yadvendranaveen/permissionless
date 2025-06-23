@@ -325,6 +325,51 @@ class WebSocketManager {
     }
   }
 
+  // Broadcast AI signal to all connected clients
+  broadcastAISignal(token, signal, confidence, reasoning = []) {
+    const message = {
+      type: 'ai_signal',
+      token: token.symbol,
+      signal: signal,
+      confidence: confidence,
+      reasoning: reasoning,
+      timestamp: new Date().toISOString()
+    };
+
+    this.broadcastToAll(message);
+  }
+
+  // Broadcast job execution message
+  broadcastJobExecuted(jobName, blockNumber, success = true) {
+    const message = {
+      type: 'job_executed',
+      job: jobName,
+      block: blockNumber,
+      success: success,
+      timestamp: new Date().toISOString()
+    };
+
+    this.broadcastToAll(message);
+  }
+
+  // Broadcast block analysis start
+  broadcastBlockAnalysis(blockNumber) {
+    const message = {
+      type: 'block_analysis',
+      block: blockNumber,
+      timestamp: new Date().toISOString()
+    };
+
+    this.broadcastToAll(message);
+  }
+
+  // Broadcast to all connected clients
+  broadcastToAll(message) {
+    for (const [clientId, client] of this.clients) {
+      this.sendToClient(clientId, message);
+    }
+  }
+
   getClientCount() {
     return this.clients.size;
   }

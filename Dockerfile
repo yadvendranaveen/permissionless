@@ -19,6 +19,9 @@ RUN npm ci --only=production
 # Copy source code
 COPY src/ ./src/
 
+# Copy public assets (dashboard files)
+COPY public/ ./public/
+
 # Create non-root user
 RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
 

@@ -1,8 +1,9 @@
 const { v4: uuidv4 } = require('uuid');
 
 class SupraAutomation {
-  constructor(analyticsEngine) {
+  constructor(analyticsEngine, wsManager = null) {
     this.analyticsEngine = analyticsEngine;
+    this.wsManager = wsManager;
     this.running = false;
     this.automationJobs = new Map();
     this.blockNumber = 0;
@@ -37,6 +38,11 @@ class SupraAutomation {
     try {
       if (!this.isTestMode) {
         console.log(`🔗 Block ${this.blockNumber}: Executing automation jobs...`);
+      }
+      
+      // Broadcast block analysis start
+      if (this.wsManager) {
+        this.wsManager.broadcastBlockAnalysis(this.blockNumber);
       }
       
       // Execute all registered automation jobs
@@ -188,8 +194,18 @@ class SupraAutomation {
       if (!this.isTestMode) {
         console.log(`✅ Job ${job.name} executed successfully (Block ${this.blockNumber})`);
       }
+      
+      // Broadcast job execution
+      if (this.wsManager) {
+        this.wsManager.broadcastJobExecuted(job.name, this.blockNumber, true);
+      }
     } catch (error) {
       console.error(`❌ Job ${job.name} execution failed:`, error);
+      
+      // Broadcast job failure
+      if (this.wsManager) {
+        this.wsManager.broadcastJobExecuted(job.name, this.blockNumber, false);
+      }
     }
   }
 
@@ -209,6 +225,11 @@ class SupraAutomation {
         
         if (!this.isTestMode) {
           console.log(`🤖 AI Signal for ${token.symbol}: ${aiSignal.action} (Confidence: ${aiSignal.confidence})`);
+        }
+        
+        // Broadcast AI signal via WebSocket
+        if (this.wsManager) {
+          this.wsManager.broadcastAISignal(token, aiSignal.action, aiSignal.confidence, aiSignal.factors);
         }
       }
     } catch (error) {
