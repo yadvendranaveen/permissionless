@@ -1,4 +1,4 @@
-# AutoTrading Analytics Bot
+# Memecoin Analytics
 
 🤖 **AI-powered trading analytics microservice with Supra automation for memecoin analysis**
 
